@@ -7,8 +7,14 @@ import {
   Message,
 } from '@aws-sdk/client-sqs';
 import { plainToInstance } from 'class-transformer';
-import { ISnsNotification, IEventConsumer } from '../interfaces/event.interface';
-import { EventsCqrsConfig, EVENTS_CQRS_CONFIG } from '../config/events-cqrs.config';
+import {
+  ISnsNotification,
+  IEventConsumer,
+} from '../interfaces/event.interface';
+import {
+  EventsCqrsConfig,
+  EVENTS_CQRS_CONFIG,
+} from '../config/events-cqrs.config';
 import { AbstractCommand } from '../commands/abstract.command';
 
 @Injectable()
@@ -19,7 +25,10 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
   private queueUrl: string;
   private serviceName: string;
   private isRunning = false;
-  private commandMappings = new Map<string, new (...args: any[]) => AbstractCommand<any>>();
+  private commandMappings = new Map<
+    string,
+    new (...args: any[]) => AbstractCommand<any>
+  >();
 
   constructor(
     private readonly commandBus: CommandBus,
@@ -41,16 +50,19 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     this.start();
   }
 
-  registerCommand(commandType: string, commandClass: new (...args: any[]) => AbstractCommand<any>): void {
+  registerCommand(
+    commandType: string,
+    commandClass: new (...args: any[]) => AbstractCommand<any>,
+  ): void {
     this.commandMappings.set(commandType, commandClass);
   }
 
-  async start(): Promise<void> {
+  start(): void {
     this.isRunning = true;
     this.poll();
   }
 
-  async stop(): Promise<void> {
+  stop(): void {
     this.isRunning = false;
   }
 

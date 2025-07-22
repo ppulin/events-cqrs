@@ -25,6 +25,6 @@ export interface IEventPublisher {
 }
 
 export interface IEventConsumer {
-  start(): Promise<void>;
-  stop(): Promise<void>;
+  start(): void;
+  stop(): void;
 }
