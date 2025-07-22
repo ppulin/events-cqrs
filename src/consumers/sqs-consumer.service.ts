@@ -8,16 +8,24 @@ import {
 } from '@aws-sdk/client-sqs';
 import { CreateUserCommand } from '../commands/create-user.command';
 import { AbstractCommand } from '../commands/abstract.command';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SqsConsumerService implements OnModuleInit {
-  private readonly client = new SQSClient({ region: 'your-region' });
-  private readonly queueUrl =
-    'https://sqs.your-region.amazonaws.com/account-id/YourQueue';
+  private client: SQSClient;
+  private queueUrl: string;
 
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly configService: ConfigService,
+  ) {}
 
   onModuleInit() {
+    this.client = new SQSClient({
+      region: this.configService.getOrThrow<string>('AWS_REGION'),
+    });
+    this.queueUrl = this.configService.getOrThrow<string>('AWS_QUEUE');
+
     this.poll();
   }
 
