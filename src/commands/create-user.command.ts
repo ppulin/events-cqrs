@@ -5,4 +5,6 @@ export class CreateUserCommand extends AbstractCommand<{
   id: string;
 }> {
   static readonly type = 'CreateUserCommand';
+
+  shouldPublish = true;
 }

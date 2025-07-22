@@ -33,7 +33,7 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     @Inject(EVENTS_CQRS_CONFIG) private readonly config: EventsCqrsConfig,
   ) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     this.serviceName = this.config.serviceName;
     this.queueUrl = this.config.sqs.queueUrl;
 
@@ -48,12 +48,12 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     this.start();
   }
 
-  async start(): Promise<void> {
+  start(): void {
     this.isRunning = true;
     this.poll();
   }
 
-  async stop(): Promise<void> {
+  stop(): void {
     this.isRunning = false;
   }
 
@@ -71,7 +71,7 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
 
         if (response.Messages) {
           for (const message of response.Messages) {
-            const command = await this.getCommand(message);
+            const command = this.getCommand(message);
             if (command) {
               await this.commandBus.execute(command);
             }
@@ -91,9 +91,7 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     }
   }
 
-  private async getCommand(
-    message: Message,
-  ): Promise<AbstractCommand<any> | null> {
+  private getCommand(message: Message): AbstractCommand<any> | null {
     const body: ISnsNotification = JSON.parse(message.Body!);
     if (body.MessageAttributes.sourceService.Value === this.serviceName) {
       this.logger.warn(
@@ -106,7 +104,7 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
 
     try {
       // Динамически ищем класс команды
-      const commands = await this.commandDiscovery.discoverCommands();
+      const commands = this.commandDiscovery.discoverCommands();
       const commandInfo = commands.find(
         (cmd) => cmd.commandClass.name === commandType,
       );
@@ -114,10 +112,13 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
       if (commandInfo) {
         const command = plainToInstance(commandInfo.commandClass, {
           data: body.Message,
-        }) as AbstractCommand<any>;
+        });
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
         command.fromTransport = true;
         this.logger.log(`Got command ${commandType} ${message.MessageId}`);
-        return command;
+        return command as AbstractCommand<any>;
       } else {
         this.logger.warn(`Unknown command type: ${commandType}`);
         return null;

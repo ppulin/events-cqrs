@@ -12,8 +12,8 @@ export class CustomCommandBusService {
   async execute<T extends ICommand, R = any>(command: T): Promise<R> {
     const result = await this.commandBus.execute(command);
 
-    // Только если команда пришла не извне
-    if (!(command as any).fromTransport) {
+    // Публикуем только если команда не пришла извне И должна публиковаться
+    if (!(command as any).fromTransport && (command as any).shouldPublish !== false) {
       await this.snsPublisher.publishCommand(command);
     }
 

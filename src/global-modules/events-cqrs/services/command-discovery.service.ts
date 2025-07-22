@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 
 @Injectable()
 export class CommandDiscoveryService {
@@ -8,10 +7,8 @@ export class CommandDiscoveryService {
 
   constructor(private readonly discoveryService: DiscoveryService) {}
 
-  async discoverCommands(): Promise<
-    Array<{ commandClass: any; handlerClass: any }>
-  > {
-    const providers = await this.discoveryService.getProviders();
+  discoverCommands(): Array<{ commandClass: any; handlerClass: any }> {
+    const providers = this.discoveryService.getProviders();
     const commands: Array<{ commandClass: any; handlerClass: any }> = [];
 
     for (const provider of providers) {
@@ -38,15 +35,5 @@ export class CommandDiscoveryService {
     }
 
     return commands;
-  }
-
-  async getCommandClasses(): Promise<any[]> {
-    const commands = await this.discoverCommands();
-    return commands.map((cmd) => cmd.commandClass);
-  }
-
-  async getCommandNames(): Promise<string[]> {
-    const commands = await this.discoverCommands();
-    return commands.map((cmd) => cmd.commandClass.name);
   }
 }

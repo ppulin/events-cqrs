@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CreateUserHandler } from './handlers/create-user.handler';
+import { UpdateUserHandler } from './handlers/update-user.handler';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -35,6 +36,6 @@ import { EventsCqrsModule } from './global-modules/events-cqrs';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, CreateUserHandler],
+  providers: [AppService, CreateUserHandler, UpdateUserHandler],
 })
 export class AppModule {}

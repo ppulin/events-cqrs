@@ -2,9 +2,9 @@ import { Controller, Get, Post, Body } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 import { AppService } from './app.service';
 import { CreateUserCommand } from './commands/create-user.command';
+import { UpdateUserCommand } from './commands/update-user.command';
 import {
   CustomCommandBusService,
-  CommandDiscoveryService,
 } from './global-modules/events-cqrs';
 
 @Controller()
@@ -12,7 +12,6 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly customCommandBus: CustomCommandBusService,
-    private readonly commandDiscovery: CommandDiscoveryService,
   ) {}
 
   @Get('create-user')
@@ -35,21 +34,16 @@ export class AppController {
     return { message: 'User creation command sent', id: body.id };
   }
 
-  @Get('commands')
-  async getCommands() {
-    const commands = await this.commandDiscovery.discoverCommands();
-    const commandNames = await this.commandDiscovery.getCommandNames();
-    const { AbstractCommand } = await import('./global-modules/events-cqrs');
+  @Post('update-user')
+  async updateUser(@Body() body: { id: string; name?: string; email?: string }) {
+    const command = new UpdateUserCommand();
+    command.data = body;
+
+    await this.customCommandBus.execute(command);
 
     return {
-      totalCommands: commands.length,
-      commandNames,
-      commands: commands.map(({ commandClass, handlerClass }) => ({
-        command: commandClass.name,
-        handler: handlerClass.name,
-        extendsAbstractCommand:
-          commandClass.prototype instanceof AbstractCommand,
-      })),
+      message: 'User update command executed (not published to SNS)',
+      id: body.id,
     };
   }
 
