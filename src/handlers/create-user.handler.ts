@@ -7,10 +7,7 @@ export class CreateUserHandler implements ICommandHandler<CreateUserCommand> {
   private logger = new Logger(CreateUserHandler.name);
 
   async execute(command: CreateUserCommand): Promise<void> {
-    this.logger.log(
-      'Executing CreateUserCommand:',
-      JSON.stringify(command.data),
-    );
+    this.logger.log(`Executing CreateUserCommand: ${command.data.id}`);
     // бизнес-логика создания пользователя
   }
 }

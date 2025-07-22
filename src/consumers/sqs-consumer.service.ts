@@ -11,12 +11,35 @@ import { CreateUserCommand } from '../commands/create-user.command';
 import { AbstractCommand } from '../commands/abstract.command';
 import { ConfigService } from '@nestjs/config';
 
+export interface SnsNotification {
+  Type: string;
+  MessageId: string;
+  TopicArn: string;
+  Message: string; // JSON-строка, которую можно дополнительно распарсить
+  Timestamp: string; // ISO строка
+  UnsubscribeURL: string;
+  MessageAttributes: {
+    eventType: {
+      Type: string;
+      Value: string;
+    };
+    sourceService: {
+      Type: string;
+      Value: string;
+    };
+  };
+  SignatureVersion: string;
+  Signature: string;
+  SigningCertURL: string;
+}
+
 @Injectable()
 export class SqsConsumerService implements OnModuleInit {
   private logger = new Logger(SqsConsumerService.name);
 
   private client: SQSClient;
   private queueUrl: string;
+  private serviceName: string;
 
   constructor(
     private readonly commandBus: CommandBus,
@@ -24,6 +47,7 @@ export class SqsConsumerService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    this.serviceName = this.configService.getOrThrow<string>('SERVICE_NAME');
     const endpoint = this.configService.get<string>('AWS_ENDPOINT_URL');
 
     this.client = new SQSClient({
@@ -51,7 +75,7 @@ export class SqsConsumerService implements OnModuleInit {
           new ReceiveMessageCommand({
             QueueUrl: this.queueUrl,
             MaxNumberOfMessages: 10,
-            WaitTimeSeconds: 20,
+            WaitTimeSeconds: 3,
             MessageAttributeNames: ['All'],
           }),
         );
@@ -79,14 +103,22 @@ export class SqsConsumerService implements OnModuleInit {
   }
 
   private getCommand(message: Message): AbstractCommand<any> | null {
-    const body = JSON.parse(message.Body!);
+    const body: SnsNotification = JSON.parse(message.Body!);
+    if (body.MessageAttributes.sourceService.Value === this.serviceName) {
+      this.logger.warn(
+        `Geo message from myself: ${body.MessageAttributes.eventType.Value}`,
+      );
+      return null;
+    }
 
     let command: AbstractCommand<any>;
-    this.logger.log(`Got command ${JSON.stringify(body)}`);
-    switch (body.type) {
+    switch (body.MessageAttributes.eventType.Value) {
       case CreateUserCommand.name:
+        this.logger.log(
+          `Got command ${CreateUserCommand.name} ${message.MessageId}`,
+        );
         command = plainToInstance(CreateUserCommand, {
-          data: body.data,
+          data: body.Message,
         });
         break;
       default:

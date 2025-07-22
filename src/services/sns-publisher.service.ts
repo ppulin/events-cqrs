@@ -8,11 +8,14 @@ export class SnsPublisherService implements OnModuleInit {
 
   private client: SNSClient;
   private topicArn: string;
+  private serviceName: string;
 
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
     const endpoint = this.configService.get<string>('AWS_ENDPOINT_URL');
+
+    this.serviceName = this.configService.getOrThrow<string>('SERVICE_NAME');
 
     this.client = new SNSClient({
       region: this.configService.getOrThrow<string>('AWS_REGION'),
@@ -31,23 +34,22 @@ export class SnsPublisherService implements OnModuleInit {
   }
 
   async publishCommand(command: any): Promise<void> {
-    const message = JSON.stringify({
-      type: command.constructor.name,
-      data: command.data,
-    });
-
     const publishCommand = new PublishCommand({
       TopicArn: this.topicArn,
-      Message: message,
+      Message: JSON.stringify(command.data),
       MessageAttributes: {
-        type: {
+        eventType: {
           DataType: 'String',
           StringValue: command.constructor.name,
+        },
+        sourceService: {
+          DataType: 'String',
+          StringValue: this.serviceName,
         },
       },
     });
 
     await this.client.send(publishCommand);
-    this.logger.log(`Publishing to ${command.constructor.name}`);
+    this.logger.log(`Publishing to ${command.data.id}`);
   }
 }
