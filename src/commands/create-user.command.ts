@@ -1,4 +1,4 @@
-import { AbstractCommand } from './abstract.command';
+import { AbstractCommand } from '../global-modules/events-cqrs';
 
 export class CreateUserCommand extends AbstractCommand<{
   name: string;

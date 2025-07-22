@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CommandBus, ICommand } from '@nestjs/cqrs';
-import { SnsPublisherService } from '../services/sns-publisher.service';
+import { SnsPublisherService } from './sns-publisher.service';
 
 @Injectable()
-export class CustomCommandBus {
+export class CustomCommandBusService {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly snsPublisher: SnsPublisherService,

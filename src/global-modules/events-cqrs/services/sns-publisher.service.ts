@@ -1,36 +1,34 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
-import { ConfigService } from '@nestjs/config';
+import { IEventPublisher } from '../interfaces/event.interface';
+import {
+  EventsCqrsConfig,
+  EVENTS_CQRS_CONFIG,
+} from '../config/events-cqrs.config';
 
 @Injectable()
-export class SnsPublisherService implements OnModuleInit {
+export class SnsPublisherService implements OnModuleInit, IEventPublisher {
   private logger = new Logger(SnsPublisherService.name);
 
   private client: SNSClient;
   private topicArn: string;
   private serviceName: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(EVENTS_CQRS_CONFIG) private readonly config: EventsCqrsConfig,
+  ) {}
 
   onModuleInit() {
-    const endpoint = this.configService.get<string>('AWS_ENDPOINT_URL');
-
-    this.serviceName = this.configService.getOrThrow<string>('SERVICE_NAME');
+    this.serviceName = this.config.serviceName;
+    this.topicArn = this.config.sns.topicArn;
 
     this.client = new SNSClient({
-      region: this.configService.getOrThrow<string>('AWS_REGION'),
-      ...(endpoint && {
-        endpoint: endpoint,
-        credentials: {
-          accessKeyId:
-            this.configService.getOrThrow<string>('AWS_ACCESS_KEY_ID'),
-          secretAccessKey: this.configService.getOrThrow<string>(
-            'AWS_SECRET_ACCESS_KEY',
-          ),
-        },
+      region: this.config.aws.region,
+      ...(this.config.aws.endpoint && {
+        endpoint: this.config.aws.endpoint,
+        credentials: this.config.aws.credentials,
       }),
     });
-    this.topicArn = this.configService.getOrThrow<string>('AWS_TOPIC');
   }
 
   async publishCommand(command: any): Promise<void> {
