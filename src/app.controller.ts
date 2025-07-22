@@ -1,15 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
 import { v4 as uuidv4 } from 'uuid';
 import { AppService } from './app.service';
 import { plainToInstance } from 'class-transformer';
 import { CreateUserCommand } from './commands/create-user.command';
+import { CustomCommandBus } from './commands/custom-command-bus';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly commandBus: CommandBus,
+    private readonly commandBus: CustomCommandBus,
   ) {}
 
   @Get()

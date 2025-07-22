@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
 import { plainToInstance } from 'class-transformer';
+import { CommandBus } from '@nestjs/cqrs';
 import {
   SQSClient,
   ReceiveMessageCommand,
