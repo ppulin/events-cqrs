@@ -1,64 +1,64 @@
-# LocalStack Setup для SNS и SQS
+# LocalStack Setup for SNS and SQS
 
-## Обзор
+## Overview
 
-Этот проект использует LocalStack для локальной разработки с AWS сервисами SNS и SQS.
+This project uses LocalStack for local development with AWS SNS and SQS services.
 
-## Настройка LocalStack
+## LocalStack Setup
 
-### 1. Запуск LocalStack
+### 1. Starting LocalStack
 
-LocalStack уже настроен и запущен с необходимыми сервисами:
+LocalStack is already configured and running with the necessary services:
 
 ```bash
-# Проверка статуса LocalStack
+# Check LocalStack status
 docker ps | grep localstack
 
-# Проверка доступности сервисов
+# Check service availability
 curl http://localhost:4566/_localstack/health
 ```
 
-### 2. Настройка AWS ресурсов
+### 2. AWS Resource Setup
 
-Запустите скрипт настройки для создания SNS топика и SQS очереди:
+Run the setup script to create SNS topic and SQS queue:
 
 ```bash
 ./setup-localstack.sh
 ```
 
-Этот скрипт создаст:
-- SNS топик: `user-events-topic`
-- SQS очередь: `user-events-queue`
-- Подписку SNS → SQS
-- Необходимые политики доступа
+This script will create:
+- SNS topic: `user-events-topic`
+- SQS queue: `user-events-queue`
+- SNS → SQS subscription
+- Required access policies
 
-### 3. Тестирование
+### 3. Testing
 
-Для тестирования работы SNS и SQS:
+To test SNS and SQS functionality:
 
 ```bash
 ./test-sns-sqs.sh
 ```
 
-## Запуск приложения
+## Running the Application
 
-### С LocalStack
+### With LocalStack
 
 ```bash
 ./start-localstack.sh
 ```
 
-### Без LocalStack (продакшн)
+### Without LocalStack (production)
 
 ```bash
 npm run start:dev
 ```
 
-## Конфигурация
+## Configuration
 
-### Переменные окружения для LocalStack
+### Environment Variables for LocalStack
 
-Файл `localstack.env` содержит:
+File `localstack.env` contains:
 
 ```
 AWS_REGION=us-east-1
@@ -69,15 +69,15 @@ AWS_TOPIC=arn:aws:sns:us-east-1:000000000000:user-events-topic
 AWS_QUEUE=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/user-events-queue
 ```
 
-### AWS CLI команды для LocalStack
+### AWS CLI Commands for LocalStack
 
-Все AWS CLI команды должны использовать endpoint URL:
+All AWS CLI commands must use the endpoint URL:
 
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 <command>
 ```
 
-## Архитектура
+## Architecture
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -92,31 +92,31 @@ aws --endpoint-url=http://localhost:4566 --region us-east-1 <command>
                     └─────────────┘    └─────────────┘
 ```
 
-## Полезные команды
+## Useful Commands
 
-### Просмотр SNS топиков
+### View SNS Topics
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sns list-topics
 ```
 
-### Просмотр SQS очередей
+### View SQS Queues
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs list-queues
 ```
 
-### Просмотр подписок
+### View Subscriptions
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sns list-subscriptions
 ```
 
-### Отправка тестового сообщения
+### Send Test Message
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sns publish \
   --topic-arn arn:aws:sns:us-east-1:000000000000:user-events-topic \
   --message '{"test": "message"}'
 ```
 
-### Получение сообщений из очереди
+### Receive Messages from Queue
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs receive-message \
   --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/user-events-queue
@@ -124,19 +124,19 @@ aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs receive-message 
 
 ## Troubleshooting
 
-### LocalStack не отвечает
+### LocalStack Not Responding
 ```bash
 docker restart localstack
 ```
 
-### Сервисы недоступны
-Проверьте, что LocalStack запущен с нужными сервисами:
+### Services Unavailable
+Check that LocalStack is running with the required services:
 ```bash
 docker run -d --name localstack -p 4566:4566 -e SERVICES=sns,sqs,lambda localstack/localstack
 ```
 
-### Проблемы с AWS CLI
-Убедитесь, что используете правильный endpoint и регион:
+### AWS CLI Issues
+Make sure you're using the correct endpoint and region:
 ```bash
 export AWS_ENDPOINT_URL=http://localhost:4566
 export AWS_DEFAULT_REGION=us-east-1

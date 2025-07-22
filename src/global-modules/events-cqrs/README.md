@@ -1,26 +1,26 @@
 # Events CQRS Module
 
-Модуль для интеграции CQRS с AWS SNS/SQS для прозрачной работы с событиями между сервисами.
+Module for integrating CQRS with AWS SNS/SQS for transparent event handling between services.
 
-## Возможности
+## Features
 
-- Автоматическая публикация команд в SNS
-- Автоматическое потребление команд из SQS
-- **Автоматическое обнаружение команд через @CommandHandler**
-- **Динамическое создание команд в момент получения события**
-- Конфигурируемая настройка AWS через ConfigService
-- Изоляция логики транспорта от бизнес-логики
+- Automatic command publishing to SNS
+- Automatic command consumption from SQS
+- **Automatic command discovery via @CommandHandler**
+- **Dynamic command creation at event reception time**
+- Configurable AWS setup through ConfigService
+- Transport logic isolation from business logic
 
-## Установка
+## Installation
 
-Модуль уже включен в проект в папке `src/global-modules/events-cqrs/`.
+The module is already included in the project in the `src/global-modules/events-cqrs/` folder.
 
-## Использование
+## Usage
 
-### 1. Импорт модуля
+### 1. Import the Module
 
-#### Способ 1: forRootAsync (рекомендуется)
-Стандартная схема с useFactory и ConfigService:
+#### Method 1: forRootAsync (recommended)
+Standard scheme with useFactory and ConfigService:
 
 ```typescript
 import { EventsCqrsModule } from './global-modules/events-cqrs';
@@ -53,8 +53,8 @@ import { EventsCqrsModule } from './global-modules/events-cqrs';
 export class AppModule {}
 ```
 
-#### Способ 2: forRoot
-Прямая передача конфигурации:
+#### Method 2: forRoot
+Direct configuration passing:
 
 ```typescript
 import { EventsCqrsModule } from './global-modules/events-cqrs';
@@ -83,7 +83,7 @@ import { EventsCqrsModule } from './global-modules/events-cqrs';
 export class AppModule {}
 ```
 
-### 2. Создание команд
+### 2. Creating Commands
 
 ```typescript
 import { AbstractCommand } from './global-modules/events-cqrs';
@@ -96,7 +96,7 @@ export class CreateUserCommand extends AbstractCommand<{
 }
 ```
 
-### 3. Создание хендлеров
+### 3. Creating Handlers
 
 ```typescript
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
@@ -105,26 +105,26 @@ import { CreateUserCommand } from './create-user.command';
 @CommandHandler(CreateUserCommand)
 export class CreateUserHandler implements ICommandHandler<CreateUserCommand> {
   async execute(command: CreateUserCommand): Promise<void> {
-    // Бизнес-логика создания пользователя
+    // Business logic for user creation
     console.log(`Creating user: ${command.data.name}`);
   }
 }
 ```
 
-### 4. Автоматическое обнаружение
+### 4. Automatic Discovery
 
-**Команды автоматически обнаруживаются и кэшируются!** Не нужно ничего дополнительно настраивать.
+**Commands are automatically discovered and cached!** No additional configuration needed.
 
 ```typescript
-// Модуль автоматически найдет все команды с @CommandHandler
+// Module automatically finds all commands with @CommandHandler
 @Module({
   imports: [EventsCqrsModule.forRootAsync({...})],
-  providers: [CreateUserHandler], // ← Автоматически обнаружена
+  providers: [CreateUserHandler], // ← Automatically discovered
 })
 export class AppModule {}
 ```
 
-### 5. Использование CustomCommandBus
+### 5. Using CustomCommandBus
 
 ```typescript
 import { CustomCommandBusService } from './global-modules/events-cqrs';
@@ -145,7 +145,7 @@ export class AppController {
 }
 ```
 
-### 6. Просмотр обнаруженных команд
+### 6. Viewing Discovered Commands
 
 ```typescript
 import { CommandDiscoveryService } from './global-modules/events-cqrs';
@@ -171,9 +171,9 @@ export class CommandsController {
 }
 ```
 
-## Конфигурация
+## Configuration
 
-### Переменные окружения (для forRootAsync)
+### Environment Variables (for forRootAsync)
 
 ```bash
 AWS_REGION=us-east-1
@@ -185,7 +185,7 @@ AWS_QUEUE=http://localhost:4566/000000000000/test-queue
 SERVICE_NAME=my-service
 ```
 
-### EventsCqrsConfig (для forRoot)
+### EventsCqrsConfig (for forRoot)
 
 ```typescript
 interface EventsCqrsConfig {
@@ -207,40 +207,40 @@ interface EventsCqrsConfig {
 }
 ```
 
-## Архитектура
+## Architecture
 
-- **AbstractCommand**: Базовая команда с поддержкой транспорта
-- **CommandDiscoveryService**: Автоматическое обнаружение команд через @CommandHandler
-- **SnsPublisherService**: Публикация команд в SNS
-- **SqsConsumerService**: Потребление команд из SQS с динамическим созданием
-- **CustomCommandBusService**: Обертка над CommandBus с автоматической публикацией
+- **AbstractCommand**: Base command with transport support
+- **CommandDiscoveryService**: Automatic command discovery via @CommandHandler
+- **SnsPublisherService**: Command publishing to SNS
+- **SqsConsumerService**: Command consumption from SQS with dynamic creation
+- **CustomCommandBusService**: Wrapper over CommandBus with automatic publishing
 
-## Принцип работы
+## How It Works
 
-1. При старте модуля `CommandDiscoveryService` сканирует все провайдеры
-2. Находит все классы с декоратором `@CommandHandler`
-3. Кэширует классы команд в `SqsConsumerService` для быстрого доступа
-4. При выполнении команды через `CustomCommandBusService`
-5. Команда выполняется локально через стандартный `CommandBus`
-6. Если команда не пришла извне (`fromTransport = false`), она публикуется в SNS
-7. SQS Consumer получает сообщения из SNS через SQS
-8. **В момент получения события динамически создается команда из кэшированного класса**
-9. Команды выполняются локально с флагом `fromTransport = true`
+1. When the module starts, `CommandDiscoveryService` scans all providers
+2. Finds all classes with the `@CommandHandler` decorator
+3. Caches command classes in `SqsConsumerService` for fast access
+4. When executing a command via `CustomCommandBusService`
+5. Command is executed locally via standard `CommandBus`
+6. If command didn't come from outside (`fromTransport = false`), it's published to SNS
+7. SQS Consumer receives messages from SNS via SQS
+8. **At event reception time, command is dynamically created from cached class**
+9. Commands are executed locally with `fromTransport = true` flag
 
-## Преимущества динамического создания
+## Dynamic Creation Benefits
 
-- **Zero Configuration**: Не нужно регистрировать команды вручную
-- **DRY**: Команды объявляются только один раз через @CommandHandler
-- **Автоматическая синхронизация**: Новые команды автоматически подхватываются
-- **Отладка**: Можно посмотреть все обнаруженные команды через API
-- **Безопасность**: Только команды с @CommandHandler обрабатываются
-- **Производительность**: Кэширование классов команд для быстрого доступа
-- **Гибкость**: Команды создаются только когда нужно
+- **Zero Configuration**: No need to manually register commands
+- **DRY**: Commands are declared only once via @CommandHandler
+- **Automatic Synchronization**: New commands are automatically picked up
+- **Debugging**: Can view all discovered commands via API
+- **Security**: Only commands with @CommandHandler are processed
+- **Performance**: Command class caching for fast access
+- **Flexibility**: Commands are created only when needed
 
-## Преимущества forRootAsync
+## forRootAsync Benefits
 
-- Стандартная схема NestJS модулей
-- Конфигурация берется из `ConfigService` и переменных окружения
-- Легко переключаться между окружениями (dev, staging, prod)
-- Соответствует принципам 12-factor app
-- Возможность инжектировать дополнительные зависимости
+- Standard NestJS module scheme
+- Configuration taken from `ConfigService` and environment variables
+- Easy switching between environments (dev, staging, prod)
+- Follows 12-factor app principles
+- Ability to inject additional dependencies
