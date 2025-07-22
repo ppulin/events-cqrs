@@ -2,7 +2,10 @@ import { Controller, Get, Post, Body } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 import { AppService } from './app.service';
 import { CreateUserCommand } from './commands/create-user.command';
-import { CustomCommandBusService, CommandDiscoveryService } from './global-modules/events-cqrs';
+import {
+  CustomCommandBusService,
+  CommandDiscoveryService,
+} from './global-modules/events-cqrs';
 
 @Controller()
 export class AppController {
@@ -44,8 +47,9 @@ export class AppController {
       commands: commands.map(({ commandClass, handlerClass }) => ({
         command: commandClass.name,
         handler: handlerClass.name,
-        extendsAbstractCommand: commandClass.prototype instanceof AbstractCommand
-      }))
+        extendsAbstractCommand:
+          commandClass.prototype instanceof AbstractCommand,
+      })),
     };
   }
 

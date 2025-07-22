@@ -7,8 +7,14 @@ import {
   Message,
 } from '@aws-sdk/client-sqs';
 import { plainToInstance } from 'class-transformer';
-import { ISnsNotification, IEventConsumer } from '../interfaces/event.interface';
-import { EventsCqrsConfig, EVENTS_CQRS_CONFIG } from '../config/events-cqrs.config';
+import {
+  ISnsNotification,
+  IEventConsumer,
+} from '../interfaces/event.interface';
+import {
+  EventsCqrsConfig,
+  EVENTS_CQRS_CONFIG,
+} from '../config/events-cqrs.config';
 import { AbstractCommand } from '../commands/abstract.command';
 import { CommandDiscoveryService } from './command-discovery.service';
 
@@ -20,7 +26,6 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
   private queueUrl: string;
   private serviceName: string;
   private isRunning = false;
-  private commandClasses = new Map<string, any>();
 
   constructor(
     private readonly commandBus: CommandBus,
@@ -40,39 +45,7 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
       }),
     });
 
-    // Кэшируем классы команд для быстрого доступа
-    await this.cacheCommandClasses();
-
     this.start();
-  }
-
-  private async cacheCommandClasses(): Promise<void> {
-    try {
-      const commands = await this.commandDiscovery.discoverCommands();
-
-      for (const { commandClass } of commands) {
-        if (this.isAbstractCommand(commandClass)) {
-          this.commandClasses.set(commandClass.name, commandClass);
-          this.logger.log(`Cached command class: ${commandClass.name}`);
-        } else {
-          this.logger.warn(
-            `Command ${commandClass.name} does not extend AbstractCommand, skipping`,
-          );
-        }
-      }
-
-      this.logger.log(`Cached ${this.commandClasses.size} command classes`);
-    } catch (error) {
-      this.logger.error('Failed to cache command classes:', error);
-    }
-  }
-
-  private isAbstractCommand(commandClass: any): boolean {
-    return (
-      commandClass.prototype instanceof AbstractCommand ||
-      commandClass.prototype.constructor === AbstractCommand ||
-      AbstractCommand.isPrototypeOf(commandClass)
-    );
   }
 
   async start(): Promise<void> {
@@ -98,7 +71,7 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
 
         if (response.Messages) {
           for (const message of response.Messages) {
-            const command = this.getCommand(message);
+            const command = await this.getCommand(message);
             if (command) {
               await this.commandBus.execute(command);
             }
@@ -118,7 +91,9 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     }
   }
 
-  private getCommand(message: Message): AbstractCommand<any> | null {
+  private async getCommand(
+    message: Message,
+  ): Promise<AbstractCommand<any> | null> {
     const body: ISnsNotification = JSON.parse(message.Body!);
     if (body.MessageAttributes.sourceService.Value === this.serviceName) {
       this.logger.warn(
@@ -128,16 +103,36 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     }
 
     const commandType = body.MessageAttributes.eventType.Value;
-    const CommandClass = this.commandClasses.get(commandType);
 
-    if (CommandClass) {
-      const command = plainToInstance(CommandClass, { data: body.Message }) as AbstractCommand<any>;
-      command.fromTransport = true;
-      this.logger.log(`Got command ${commandType} ${message.MessageId}`);
-      return command;
-    } else {
-      this.logger.warn(`Unknown command type: ${commandType}`);
+    try {
+      // Динамически ищем класс команды
+      const commands = await this.commandDiscovery.discoverCommands();
+      const commandInfo = commands.find(
+        (cmd) => cmd.commandClass.name === commandType,
+      );
+
+      if (commandInfo && this.isAbstractCommand(commandInfo.commandClass)) {
+        const command = plainToInstance(commandInfo.commandClass, {
+          data: body.Message,
+        });
+        command.fromTransport = true;
+        this.logger.log(`Got command ${commandType} ${message.MessageId}`);
+        return command;
+      } else {
+        this.logger.warn(`Unknown command type: ${commandType}`);
+        return null;
+      }
+    } catch (error) {
+      this.logger.error(`Error creating command ${commandType}:`, error);
       return null;
     }
+  }
+
+  private isAbstractCommand(commandClass: any): boolean {
+    return (
+      commandClass.prototype instanceof AbstractCommand ||
+      commandClass.prototype.constructor === AbstractCommand ||
+      AbstractCommand.isPrototypeOf(commandClass)
+    );
   }
 }

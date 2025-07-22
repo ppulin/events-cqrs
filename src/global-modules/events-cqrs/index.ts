@@ -1,8 +1,14 @@
 // Модуль
-export { EventsCqrsModule, EventsCqrsModuleOptions } from './events-cqrs.module';
+export {
+  EventsCqrsModule,
+  EventsCqrsModuleOptions,
+} from './events-cqrs.module';
 
 // Конфигурация
-export { EventsCqrsConfig, EVENTS_CQRS_CONFIG } from './config/events-cqrs.config';
+export {
+  EventsCqrsConfig,
+  EVENTS_CQRS_CONFIG,
+} from './config/events-cqrs.config';
 
 // Команды
 export { AbstractCommand } from './commands/abstract.command';
@@ -14,5 +20,12 @@ export { CustomCommandBusService } from './services/custom-command-bus.service';
 export { CommandDiscoveryService } from './services/command-discovery.service';
 
 // Интерфейсы
-export { ITransportableCommand, ICommandMetadata } from './interfaces/command.interface';
-export { ISnsNotification, IEventPublisher, IEventConsumer } from './interfaces/event.interface';
+export {
+  ITransportableCommand,
+  ICommandMetadata,
+} from './interfaces/command.interface';
+export {
+  ISnsNotification,
+  IEventPublisher,
+  IEventConsumer,
+} from './interfaces/event.interface';
