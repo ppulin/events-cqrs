@@ -7,15 +7,10 @@ import {
   Message,
 } from '@aws-sdk/client-sqs';
 import { plainToInstance } from 'class-transformer';
-import {
-  ISnsNotification,
-  IEventConsumer,
-} from '../interfaces/event.interface';
-import {
-  EventsCqrsConfig,
-  EVENTS_CQRS_CONFIG,
-} from '../config/events-cqrs.config';
+import { ISnsNotification, IEventConsumer } from '../interfaces/event.interface';
+import { EventsCqrsConfig, EVENTS_CQRS_CONFIG } from '../config/events-cqrs.config';
 import { AbstractCommand } from '../commands/abstract.command';
+import { CommandDiscoveryService } from './command-discovery.service';
 
 @Injectable()
 export class SqsConsumerService implements OnModuleInit, IEventConsumer {
@@ -25,17 +20,15 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
   private queueUrl: string;
   private serviceName: string;
   private isRunning = false;
-  private commandMappings = new Map<
-    string,
-    new (...args: any[]) => AbstractCommand<any>
-  >();
+  private commandClasses = new Map<string, any>();
 
   constructor(
     private readonly commandBus: CommandBus,
+    private readonly commandDiscovery: CommandDiscoveryService,
     @Inject(EVENTS_CQRS_CONFIG) private readonly config: EventsCqrsConfig,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     this.serviceName = this.config.serviceName;
     this.queueUrl = this.config.sqs.queueUrl;
 
@@ -47,22 +40,47 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
       }),
     });
 
+    // Кэшируем классы команд для быстрого доступа
+    await this.cacheCommandClasses();
+
     this.start();
   }
 
-  registerCommand(
-    commandType: string,
-    commandClass: new (...args: any[]) => AbstractCommand<any>,
-  ): void {
-    this.commandMappings.set(commandType, commandClass);
+  private async cacheCommandClasses(): Promise<void> {
+    try {
+      const commands = await this.commandDiscovery.discoverCommands();
+
+      for (const { commandClass } of commands) {
+        if (this.isAbstractCommand(commandClass)) {
+          this.commandClasses.set(commandClass.name, commandClass);
+          this.logger.log(`Cached command class: ${commandClass.name}`);
+        } else {
+          this.logger.warn(
+            `Command ${commandClass.name} does not extend AbstractCommand, skipping`,
+          );
+        }
+      }
+
+      this.logger.log(`Cached ${this.commandClasses.size} command classes`);
+    } catch (error) {
+      this.logger.error('Failed to cache command classes:', error);
+    }
   }
 
-  start(): void {
+  private isAbstractCommand(commandClass: any): boolean {
+    return (
+      commandClass.prototype instanceof AbstractCommand ||
+      commandClass.prototype.constructor === AbstractCommand ||
+      AbstractCommand.isPrototypeOf(commandClass)
+    );
+  }
+
+  async start(): Promise<void> {
     this.isRunning = true;
     this.poll();
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.isRunning = false;
   }
 
@@ -110,10 +128,10 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
     }
 
     const commandType = body.MessageAttributes.eventType.Value;
-    const CommandClass = this.commandMappings.get(commandType);
+    const CommandClass = this.commandClasses.get(commandType);
 
     if (CommandClass) {
-      const command = plainToInstance(CommandClass, { data: body.Message });
+      const command = plainToInstance(CommandClass, { data: body.Message }) as AbstractCommand<any>;
       command.fromTransport = true;
       this.logger.log(`Got command ${commandType} ${message.MessageId}`);
       return command;

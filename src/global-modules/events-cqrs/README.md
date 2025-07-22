@@ -6,7 +6,8 @@
 
 - Автоматическая публикация команд в SNS
 - Автоматическое потребление команд из SQS
-- Регистрация команд через SqsConsumerService
+- **Автоматическое обнаружение команд через @CommandHandler**
+- **Динамическое создание команд в момент получения события**
 - Конфигурируемая настройка AWS через ConfigService
 - Изоляция логики транспорта от бизнес-логики
 
@@ -95,23 +96,35 @@ export class CreateUserCommand extends AbstractCommand<{
 }
 ```
 
-### 3. Регистрация команд
+### 3. Создание хендлеров
 
 ```typescript
-import { OnModuleInit } from '@nestjs/common';
-import { SqsConsumerService, CreateUserCommand } from './global-modules/events-cqrs';
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { CreateUserCommand } from './create-user.command';
 
-export class AppModule implements OnModuleInit {
-  constructor(private readonly sqsConsumer: SqsConsumerService) {}
-
-  onModuleInit() {
-    // Регистрируем команды для SQS Consumer
-    this.sqsConsumer.registerCommand(CreateUserCommand.name, CreateUserCommand);
+@CommandHandler(CreateUserCommand)
+export class CreateUserHandler implements ICommandHandler<CreateUserCommand> {
+  async execute(command: CreateUserCommand): Promise<void> {
+    // Бизнес-логика создания пользователя
+    console.log(`Creating user: ${command.data.name}`);
   }
 }
 ```
 
-### 4. Использование CustomCommandBus
+### 4. Автоматическое обнаружение
+
+**Команды автоматически обнаруживаются и кэшируются!** Не нужно ничего дополнительно настраивать.
+
+```typescript
+// Модуль автоматически найдет все команды с @CommandHandler
+@Module({
+  imports: [EventsCqrsModule.forRootAsync({...})],
+  providers: [CreateUserHandler], // ← Автоматически обнаружена
+})
+export class AppModule {}
+```
+
+### 5. Использование CustomCommandBus
 
 ```typescript
 import { CustomCommandBusService } from './global-modules/events-cqrs';
@@ -128,6 +141,32 @@ export class AppController {
     await this.customCommandBus.execute(command);
 
     return { message: 'User creation command sent', id: body.id };
+  }
+}
+```
+
+### 6. Просмотр обнаруженных команд
+
+```typescript
+import { CommandDiscoveryService } from './global-modules/events-cqrs';
+
+@Controller()
+export class CommandsController {
+  constructor(private readonly commandDiscovery: CommandDiscoveryService) {}
+
+  @Get('commands')
+  async getCommands() {
+    const commands = await this.commandDiscovery.discoverCommands();
+    const commandNames = await this.commandDiscovery.getCommandNames();
+
+    return {
+      totalCommands: commands.length,
+      commandNames,
+      commands: commands.map(({ commandClass, handlerClass }) => ({
+        command: commandClass.name,
+        handler: handlerClass.name
+      }))
+    };
   }
 }
 ```
@@ -171,18 +210,32 @@ interface EventsCqrsConfig {
 ## Архитектура
 
 - **AbstractCommand**: Базовая команда с поддержкой транспорта
+- **CommandDiscoveryService**: Автоматическое обнаружение команд через @CommandHandler
 - **SnsPublisherService**: Публикация команд в SNS
-- **SqsConsumerService**: Потребление команд из SQS с регистрацией
+- **SqsConsumerService**: Потребление команд из SQS с динамическим созданием
 - **CustomCommandBusService**: Обертка над CommandBus с автоматической публикацией
 
 ## Принцип работы
 
-1. При выполнении команды через `CustomCommandBusService`
-2. Команда выполняется локально через стандартный `CommandBus`
-3. Если команда не пришла извне (`fromTransport = false`), она публикуется в SNS
-4. SQS Consumer получает сообщения из SNS через SQS
-5. Сообщения десериализуются в команды через зарегистрированные классы
-6. Команды выполняются локально с флагом `fromTransport = true`
+1. При старте модуля `CommandDiscoveryService` сканирует все провайдеры
+2. Находит все классы с декоратором `@CommandHandler`
+3. Кэширует классы команд в `SqsConsumerService` для быстрого доступа
+4. При выполнении команды через `CustomCommandBusService`
+5. Команда выполняется локально через стандартный `CommandBus`
+6. Если команда не пришла извне (`fromTransport = false`), она публикуется в SNS
+7. SQS Consumer получает сообщения из SNS через SQS
+8. **В момент получения события динамически создается команда из кэшированного класса**
+9. Команды выполняются локально с флагом `fromTransport = true`
+
+## Преимущества динамического создания
+
+- **Zero Configuration**: Не нужно регистрировать команды вручную
+- **DRY**: Команды объявляются только один раз через @CommandHandler
+- **Автоматическая синхронизация**: Новые команды автоматически подхватываются
+- **Отладка**: Можно посмотреть все обнаруженные команды через API
+- **Безопасность**: Только команды с @CommandHandler обрабатываются
+- **Производительность**: Кэширование классов команд для быстрого доступа
+- **Гибкость**: Команды создаются только когда нужно
 
 ## Преимущества forRootAsync
 

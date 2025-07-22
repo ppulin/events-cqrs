@@ -1,6 +1,7 @@
 import { Module, DynamicModule } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { DiscoveryModule } from '@nestjs/core';
 import {
   EventsCqrsConfig,
   EVENTS_CQRS_CONFIG,
@@ -8,6 +9,7 @@ import {
 import { SnsPublisherService } from './services/sns-publisher.service';
 import { SqsConsumerService } from './services/sqs-consumer.service';
 import { CustomCommandBusService } from './services/custom-command-bus.service';
+import { CommandDiscoveryService } from './services/command-discovery.service';
 
 export interface EventsCqrsModuleOptions {
   useFactory: (configService: ConfigService) => EventsCqrsConfig;
@@ -19,17 +21,19 @@ export class EventsCqrsModule {
   static forRoot(config: EventsCqrsConfig): DynamicModule {
     return {
       module: EventsCqrsModule,
-      imports: [CqrsModule],
+      imports: [CqrsModule, DiscoveryModule],
       providers: [
         {
           provide: EVENTS_CQRS_CONFIG,
           useValue: config,
         },
+        CommandDiscoveryService,
         SnsPublisherService,
         SqsConsumerService,
         CustomCommandBusService,
       ],
       exports: [
+        CommandDiscoveryService,
         SnsPublisherService,
         SqsConsumerService,
         CustomCommandBusService,
@@ -40,18 +44,20 @@ export class EventsCqrsModule {
   static forRootAsync(options: EventsCqrsModuleOptions): DynamicModule {
     return {
       module: EventsCqrsModule,
-      imports: [CqrsModule, ConfigModule],
+      imports: [CqrsModule, ConfigModule, DiscoveryModule],
       providers: [
         {
           provide: EVENTS_CQRS_CONFIG,
           useFactory: options.useFactory,
           inject: options.inject,
         },
+        CommandDiscoveryService,
         SnsPublisherService,
         SqsConsumerService,
         CustomCommandBusService,
       ],
       exports: [
+        CommandDiscoveryService,
         SnsPublisherService,
         SqsConsumerService,
         CustomCommandBusService,

@@ -1,15 +1,11 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CreateUserHandler } from './handlers/create-user.handler';
-import { CreateUserCommand } from './commands/create-user.command';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import {
-  EventsCqrsModule,
-  SqsConsumerService,
-} from './global-modules/events-cqrs';
+import { EventsCqrsModule } from './global-modules/events-cqrs';
 
 @Module({
   imports: [
@@ -41,11 +37,4 @@ import {
   controllers: [AppController],
   providers: [AppService, CreateUserHandler],
 })
-export class AppModule implements OnModuleInit {
-  constructor(private readonly sqsConsumer: SqsConsumerService) {}
-
-  onModuleInit() {
-    // Регистрируем команды для SQS Consumer
-    this.sqsConsumer.registerCommand(CreateUserCommand.name, CreateUserCommand);
-  }
-}
+export class AppModule {}
