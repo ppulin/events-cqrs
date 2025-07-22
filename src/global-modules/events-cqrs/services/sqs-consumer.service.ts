@@ -111,10 +111,10 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
         (cmd) => cmd.commandClass.name === commandType,
       );
 
-      if (commandInfo && this.isAbstractCommand(commandInfo.commandClass)) {
+      if (commandInfo) {
         const command = plainToInstance(commandInfo.commandClass, {
           data: body.Message,
-        });
+        }) as AbstractCommand<any>;
         command.fromTransport = true;
         this.logger.log(`Got command ${commandType} ${message.MessageId}`);
         return command;
@@ -126,13 +126,5 @@ export class SqsConsumerService implements OnModuleInit, IEventConsumer {
       this.logger.error(`Error creating command ${commandType}:`, error);
       return null;
     }
-  }
-
-  private isAbstractCommand(commandClass: any): boolean {
-    return (
-      commandClass.prototype instanceof AbstractCommand ||
-      commandClass.prototype.constructor === AbstractCommand ||
-      AbstractCommand.isPrototypeOf(commandClass)
-    );
   }
 }
